@@ -23,7 +23,38 @@ func NewSyncUsecase(reader port.EngramReader, store port.VectorStore) *SyncUseca
 	return &SyncUsecase{reader: reader, store: store}
 }
 
-// Run is a placeholder until slice 6 implements the real logic.
+// Run removes vectors whose observation id is no longer live in Engram (either
+// hard-deleted or soft-deleted via deleted_at). Live vectors are preserved.
 func (s *SyncUsecase) Run(ctx context.Context) (*SyncResult, error) {
-	return &SyncResult{}, nil
+	liveIDs, err := s.reader.LiveIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	storedIDs, err := s.store.AllObsIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	live := make(map[int64]struct{}, len(liveIDs))
+	for _, id := range liveIDs {
+		live[id] = struct{}{}
+	}
+
+	var orphans []int64
+	var preserved int64
+	for _, id := range storedIDs {
+		if _, ok := live[id]; ok {
+			preserved++
+			continue
+		}
+		orphans = append(orphans, id)
+	}
+
+	if len(orphans) > 0 {
+		if err := s.store.DeleteByIDs(ctx, orphans); err != nil {
+			return nil, err
+		}
+	}
+
+	return &SyncResult{Orphans: int64(len(orphans)), LivePreserved: preserved}, nil
 }
