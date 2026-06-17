@@ -1,6 +1,6 @@
-# Binaries
-synapse
-synapse-*
+# Binaries (root-level compiled binary only, not cmd/synapse source dir)
+/synapse
+/synapse-*
 *.exe
 
 # Env / secrets
@@ -15,6 +15,10 @@ synapse-*
 
 # Go
 /vendor/
+
+# SDD / tooling internals (local only)
+.atl/
+.engram/
 
 # OS
 .DS_Store
