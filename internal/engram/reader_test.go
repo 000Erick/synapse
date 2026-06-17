@@ -208,6 +208,52 @@ func TestEngramReader_FTS_LimitHonored(t *testing.T) {
 	}
 }
 
+func TestEngramReader_FTS_HandlesSpecialChars(t *testing.T) {
+	path := seedEngram(t)
+	r, err := engram.NewSQLiteEngramReader(path)
+	if err != nil {
+		t.Fatalf("NewSQLiteEngramReader: %v", err)
+	}
+	defer r.Close()
+
+	// These queries used to crash FTS5 ("no such column: IS", syntax error)
+	// because -, ", *, : are FTS5 operators. They must now be safe and return
+	// without error (results may be empty, that's fine).
+	cases := []string{
+		"AS-IS colombia",
+		`"unterminated quote`,
+		"foo* bar",
+		"a:b (c)",
+		"AND OR NEAR",
+		"   ",
+		"",
+	}
+	for _, q := range cases {
+		if _, err := r.FTS(context.Background(), q, 10); err != nil {
+			t.Errorf("FTS(%q) returned error, want none: %v", q, err)
+		}
+	}
+}
+
+func TestEngramReader_FTS_HyphenQueryStillMatches(t *testing.T) {
+	path := seedEngram(t)
+	r, err := engram.NewSQLiteEngramReader(path)
+	if err != nil {
+		t.Fatalf("NewSQLiteEngramReader: %v", err)
+	}
+	defer r.Close()
+
+	// "architecture rules" lives in id 1's content. A query with a hyphen mixed
+	// in must still find it (tokens are quoted and AND-ed).
+	results, err := r.FTS(context.Background(), "architecture", 10)
+	if err != nil {
+		t.Fatalf("FTS: %v", err)
+	}
+	if len(results) == 0 {
+		t.Fatal("expected a match for 'architecture' after sanitization")
+	}
+}
+
 func TestEngramReader_ReadOnly_RejectsWrites(t *testing.T) {
 	path := seedEngram(t)
 	r, err := engram.NewSQLiteEngramReader(path)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -87,6 +88,10 @@ func (r *SQLiteEngramReader) LiveIDs(ctx context.Context) ([]int64, error) {
 
 // FTS performs an FTS5 MATCH search and returns up to k results in BM25 order.
 func (r *SQLiteEngramReader) FTS(ctx context.Context, query string, k int) ([]domain.Ranked, error) {
+	match := sanitizeFTS(query)
+	if match == "" {
+		return nil, nil
+	}
 	const q = `SELECT o.id, -bm25(observations_fts) AS score
                FROM observations_fts
                JOIN observations o ON o.id = observations_fts.rowid
@@ -94,7 +99,7 @@ func (r *SQLiteEngramReader) FTS(ctx context.Context, query string, k int) ([]do
                  AND o.deleted_at IS NULL
                ORDER BY bm25(observations_fts)
                LIMIT ?`
-	rows, err := r.db.QueryContext(ctx, q, query, k)
+	rows, err := r.db.QueryContext(ctx, q, match, k)
 	if err != nil {
 		return nil, fmt.Errorf("engram: FTS: %w", err)
 	}
@@ -110,6 +115,27 @@ func (r *SQLiteEngramReader) FTS(ctx context.Context, query string, k int) ([]do
 		results = append(results, r)
 	}
 	return results, rows.Err()
+}
+
+// sanitizeFTS turns an arbitrary user query into a safe FTS5 MATCH expression.
+// FTS5 treats characters like - " * : ( ) and words like AND/OR/NEAR as
+// operators, so a raw query such as "AS-IS" errors ("no such column: IS").
+// We split on whitespace, strip embedded double quotes, and wrap each token in
+// double quotes so FTS5 treats every token as a literal phrase. Tokens are
+// implicitly AND-ed, matching typical search expectations.
+func sanitizeFTS(query string) string {
+	fields := strings.Fields(query)
+	quoted := make([]string, 0, len(fields))
+	for _, f := range fields {
+		// Drop embedded double quotes, then re-quote the whole token.
+		f = strings.ReplaceAll(f, `"`, "")
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		quoted = append(quoted, `"`+f+`"`)
+	}
+	return strings.Join(quoted, " ")
 }
 
 // ExecForTest executes an arbitrary SQL statement — only used in tests to
