@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path/filepath"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -30,7 +31,16 @@ func main() {
 		defer engramReader.Close()
 	}
 
-	noopStore := &store.NoopVectorStore{}
+	if err := os.MkdirAll(filepath.Dir(cfg.SynapseDBPath), 0o755); err != nil {
+		log.Printf("synapse: warn: cannot create synapse dir: %v", err)
+	}
+	vecStore, err := store.NewSQLiteVectorStore(cfg.SynapseDBPath)
+	if err != nil {
+		log.Printf("synapse: vector store: %v", err)
+		os.Exit(1)
+	}
+	defer vecStore.Close()
+
 	noopEmbed := &embed.NoopEmbedder{}
 
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{
@@ -42,7 +52,7 @@ func main() {
 		EngramPath:  cfg.EngramDBPath,
 		SynapsePath: cfg.SynapseDBPath,
 		Reader:      engramReader,
-		Store:       noopStore,
+		Store:       vecStore,
 		Embedder:    noopEmbed,
 		Model:       cfg.OpenAIEmbedModel,
 		APIKey:      cfg.OpenAIAPIKey,
