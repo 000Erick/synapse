@@ -1,0 +1,20 @@
+# Binaries
+synapse
+synapse-*
+*.exe
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Vector DB (local data)
+*.db
+*.db-shm
+*.db-wal
+
+# Go
+/vendor/
+
+# OS
+.DS_Store

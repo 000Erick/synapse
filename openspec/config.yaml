@@ -1,0 +1,54 @@
+project: synapse
+codename: oxpecker
+description: >
+  Standalone MCP server that adds semantic search on top of Engram memory.
+  Sibling server (NOT a proxy). Exposes synapse_health, synapse_stats,
+  synapse_backfill, synapse_search, synapse_sync tools. Reads Engram SQLite
+  DB read-only; stores embedding vectors in its own separate SQLite DB (sqlite-vec).
+
+stack:
+  language: Go 1.26.4
+  platform: darwin/arm64
+  runtime: single-binary MCP server over stdio
+  databases:
+    engram_db: /Users/ediazs/.engram/engram.db  # read-only
+    synapse_db: /Users/ediazs/.synapse/synapse.db  # sqlite-vec extension
+  embeddings:
+    provider: OpenAI
+    model: text-embedding-3-large
+    config_env: OPENAI_API_KEY, OPENAI_EMBED_MODEL, SYNAPSE_DB_PATH, ENGRAM_DB_PATH
+  search: Hybrid (Engram FTS5 lexical + sqlite-vec KNN via RRF k=60)
+
+testing:
+  strict_tdd: true
+  runner: go test
+  command: go test ./...
+  go_path: /opt/homebrew/bin/go
+  coverage_command: go test ./... -cover
+  layers:
+    unit: true
+    integration: true   # httptest for MCP/HTTP layer, sqlite in-memory for DB layer
+    e2e: false
+
+quality:
+  linter: golangci-lint (when added)
+  formatter: gofmt / goimports
+  type_checker: go vet
+
+conventions:
+  - Single-binary philosophy matching Engram
+  - No modification to Engram DB (read-only contract)
+  - Secrets via env only (.env git-ignored)
+  - Vector DB isolated from Engram to survive schema/version drift
+  - Multilingual embeddings: text-embedding-3-large handles cross-language search
+  - Orphan cleanup: vectors whose Engram observation no longer exists must be removed
+  - Batched OpenAI calls for backfill (~1036 observations)
+
+phases:
+  proposal:  { artifact: openspec/changes/{change}/proposal.md }
+  spec:      { artifact: openspec/changes/{change}/spec.md }
+  design:    { artifact: openspec/changes/{change}/design.md }
+  tasks:     { artifact: openspec/changes/{change}/tasks.md }
+  apply:     { artifact: openspec/changes/{change}/apply-progress.md }
+  verify:    { artifact: openspec/changes/{change}/verify-report.md }
+  archive:   { artifact: openspec/changes/archive/{change}/ }
