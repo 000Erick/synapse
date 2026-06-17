@@ -41,7 +41,7 @@ func main() {
 	}
 	defer vecStore.Close()
 
-	noopEmbed := &embed.NoopEmbedder{}
+	embedder := embed.NewOpenAIEmbedder(cfg.OpenAIAPIKey, cfg.OpenAIEmbedModel)
 
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{
 		Name:    "synapse",
@@ -53,7 +53,7 @@ func main() {
 		SynapsePath: cfg.SynapseDBPath,
 		Reader:      engramReader,
 		Store:       vecStore,
-		Embedder:    noopEmbed,
+		Embedder:    embedder,
 		Model:       cfg.OpenAIEmbedModel,
 		APIKey:      cfg.OpenAIAPIKey,
 	}
