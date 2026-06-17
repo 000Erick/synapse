@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/joho/godotenv"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/ediazs/synapse/internal/config"
@@ -16,6 +17,10 @@ import (
 )
 
 func main() {
+	// Load .env for local development. Missing file is not an error — in
+	// production config comes from the real environment.
+	_ = godotenv.Load()
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Printf("synapse: config: %v", err)
