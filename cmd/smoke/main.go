@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/joho/godotenv"
 
@@ -48,29 +47,23 @@ func main() {
 
 	embedder := embed.NewOpenAIEmbedder(cfg.OpenAIAPIKey, cfg.OpenAIEmbedModel)
 
-	// --- BACKFILL ---
-	fmt.Println("== backfill starting ==")
-	t0 := time.Now()
+	// Backfill only embeds new/changed observations (idempotent), so this is
+	// cheap when already populated.
 	bf := usecase.NewBackfillUsecase(reader, vstore, embedder, cfg.OpenAIAPIKey, cfg.OpenAIEmbedModel)
 	res, err := bf.Run(ctx)
 	if err != nil {
 		log.Fatalf("backfill: %v", err)
 	}
-	fmt.Printf("backfill done in %s: embedded=%d skipped=%d failed=%d\n",
-		time.Since(t0).Round(time.Millisecond), res.Embedded, res.Skipped, res.Failed)
+	fmt.Printf("backfill: embedded=%d skipped=%d failed=%d\n", res.Embedded, res.Skipped, res.Failed)
 
-	n, _ := vstore.CountVectors(ctx)
-	fmt.Printf("vectors stored: %d\n", n)
-
-	// --- SEARCH ---
 	queries := os.Args[1:]
 	if len(queries) == 0 {
-		queries = []string{"profesor", "zombie", "arquitectura limpia"}
+		queries = []string{"colombia"}
 	}
 	search := usecase.NewSearchUsecase(reader, vstore, embedder, cfg.OpenAIAPIKey)
 	for _, q := range queries {
 		fmt.Printf("\n== search %q ==\n", q)
-		hits, vectorUsed, err := search.Run(ctx, q, 5)
+		hits, vectorUsed, err := search.Run(ctx, q, 8)
 		if err != nil {
 			fmt.Printf("  error: %v\n", err)
 			continue
@@ -78,7 +71,7 @@ func main() {
 		fmt.Printf("  vectorUsed=%v, %d hits:\n", vectorUsed, len(hits))
 		for i, h := range hits {
 			src := map[int]string{1: "fts", 2: "vec", 3: "both"}[int(h.Source)]
-			fmt.Printf("  %d. [%s score=%.4f] #%d %s\n", i+1, src, h.Score, h.ID, h.Title)
+			fmt.Printf("  %d. [%-4s score=%.4f] #%d %s\n", i+1, src, h.Score, h.ID, h.Title)
 		}
 	}
 }
