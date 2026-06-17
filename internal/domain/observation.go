@@ -36,11 +36,31 @@ type VecRow struct {
 	Model       string
 }
 
+// String returns the human-readable name of the source.
+func (s Source) String() string {
+	switch s {
+	case SourceFTS:
+		return "fts"
+	case SourceVec:
+		return "vec"
+	case SourceBoth:
+		return "both"
+	default:
+		return "unknown"
+	}
+}
+
+// MarshalJSON serializes Source as a readable string ("fts"|"vec"|"both")
+// instead of its numeric bitmask, so tool output is self-explanatory.
+func (s Source) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.String() + `"`), nil
+}
+
 // SearchResult is a hydrated search hit returned to the caller.
 type SearchResult struct {
-	ID      int64
-	Title   string
-	Snippet string // first 200 chars of Content
-	Score   float64
-	Source  Source
+	ID      int64   `json:"id"`
+	Title   string  `json:"title"`
+	Snippet string  `json:"snippet"` // first 200 chars of Content
+	Score   float64 `json:"score"`
+	Source  Source  `json:"source"`
 }

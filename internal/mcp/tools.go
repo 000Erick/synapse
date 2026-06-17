@@ -153,13 +153,13 @@ func addSearchTool(server *sdkmcp.Server, d *Deps) {
 			limit = 10
 		}
 		uc := usecase.NewSearchUsecase(d.Reader, d.Store, d.Embedder, d.APIKey)
-		results, vectorUnavailable, err := uc.Run(ctx, args.Query, limit)
+		results, vectorUsed, err := uc.Run(ctx, args.Query, limit)
 		if err != nil {
 			return nil, nil, err
 		}
 		out := map[string]any{
-			"results":            results,
-			"vector_unavailable": vectorUnavailable,
+			"results":     results,
+			"vector_used": vectorUsed,
 		}
 		b, _ := json.Marshal(out)
 		return &sdkmcp.CallToolResult{
