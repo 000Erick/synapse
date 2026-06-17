@@ -36,7 +36,16 @@ func (r *SQLiteEngramReader) Close() error {
 
 // LiveObservations returns all non-deleted observations.
 func (r *SQLiteEngramReader) LiveObservations(ctx context.Context) ([]domain.Observation, error) {
-	const q = `SELECT id, title, content, project, scope, type, topic_key, updated_at
+	// COALESCE guards against NULL text columns in real Engram data
+	// (topic_key, scope, etc. are nullable). title/content are NOT NULL.
+	const q = `SELECT id,
+                      COALESCE(title, ''),
+                      COALESCE(content, ''),
+                      COALESCE(project, ''),
+                      COALESCE(scope, ''),
+                      COALESCE(type, ''),
+                      COALESCE(topic_key, ''),
+                      COALESCE(updated_at, '')
                FROM observations
                WHERE deleted_at IS NULL`
 	rows, err := r.db.QueryContext(ctx, q)

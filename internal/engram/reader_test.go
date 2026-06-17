@@ -25,16 +25,18 @@ func seedEngram(t *testing.T) string {
 	}
 	defer db.Close()
 
+	// Schema mirrors real Engram: text columns other than title/content are
+	// NULLABLE. The reader must tolerate NULLs (COALESCE in the query).
 	_, err = db.Exec(`
 		CREATE TABLE observations (
 			id         INTEGER PRIMARY KEY,
 			title      TEXT NOT NULL,
 			content    TEXT NOT NULL,
-			project    TEXT NOT NULL DEFAULT '',
-			scope      TEXT NOT NULL DEFAULT '',
-			type       TEXT NOT NULL DEFAULT '',
-			topic_key  TEXT NOT NULL DEFAULT '',
-			updated_at TEXT NOT NULL DEFAULT '',
+			project    TEXT,
+			scope      TEXT,
+			type       TEXT,
+			topic_key  TEXT,
+			updated_at TEXT,
 			deleted_at TEXT
 		);
 		CREATE VIRTUAL TABLE observations_fts USING fts5(
@@ -61,6 +63,9 @@ func seedEngram(t *testing.T) string {
 		{4, "note alpha", "note content alpha", nil},
 		{5, "note beta", "note content beta", nil},
 		{6, "deleted obs", "should not appear", "2024-01-01T00:00:00Z"},
+		// id 7 has NULL project/scope/type/topic_key/updated_at — reproduces
+		// the real-data bug where Scan into string failed on NULL.
+		{7, "null-cols obs", "has null metadata", nil},
 	}
 	for _, r := range rows {
 		_, err = db.Exec(
@@ -86,8 +91,8 @@ func TestEngramReader_LiveObservations_OnlyLive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LiveObservations: %v", err)
 	}
-	if len(obs) != 5 {
-		t.Errorf("expected 5 live observations, got %d", len(obs))
+	if len(obs) != 6 {
+		t.Errorf("expected 6 live observations, got %d", len(obs))
 	}
 	for _, o := range obs {
 		if o.ID == 6 {
@@ -138,8 +143,8 @@ func TestEngramReader_LiveIDs_OnlyLive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LiveIDs: %v", err)
 	}
-	if len(ids) != 5 {
-		t.Errorf("expected 5 live IDs, got %d", len(ids))
+	if len(ids) != 6 {
+		t.Errorf("expected 6 live IDs, got %d", len(ids))
 	}
 	for _, id := range ids {
 		if id == 6 {
