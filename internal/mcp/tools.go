@@ -119,7 +119,7 @@ func addBackfillTool(server *sdkmcp.Server, d *Deps) {
 				Content: []sdkmcp.Content{&sdkmcp.TextContent{Text: string(b)}},
 			}, nil, nil
 		}
-		uc := usecase.NewBackfillUsecase(d.Reader, d.Store, d.Embedder, d.APIKey)
+		uc := usecase.NewBackfillUsecase(d.Reader, d.Store, d.Embedder, d.APIKey, d.Model)
 		result, err := uc.Run(ctx)
 		if err != nil {
 			return nil, nil, err
