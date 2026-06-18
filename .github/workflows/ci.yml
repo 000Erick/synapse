@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# Use bash on every platform (Windows runners default to PowerShell, where the
+# inline `CGO_ENABLED=0 go build` syntax is invalid).
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build-test:
     strategy:
