@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)](go.mod)
 [![MCP](https://img.shields.io/badge/MCP-server-6E56CF)](https://modelcontextprotocol.io)
-[![sqlite-vec](https://img.shields.io/badge/sqlite--vec-CGO-003B57?logo=sqlite&logoColor=white)](https://github.com/asg017/sqlite-vec)
+[![Pure Go](https://img.shields.io/badge/pure%20Go-no%20CGO-00ADD8?logo=go&logoColor=white)](go.mod)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
 <em>A synapse is the connection that gives meaning to a memory.</em>
@@ -40,7 +40,19 @@
 - **Two databases, one owner each.** `engram.db` is read **read-only** and **never written**. Synapse owns a separate `synapse.db` for vectors. This isolation makes Synapse **immune to Engram's schema and version changes**.
 - **Hybrid search.** Lexical (FTS5) + semantic (vector KNN) results fused with **Reciprocal Rank Fusion** (RRF, k=60) — you get exact keyword hits *and* meaning-based matches in one ranked list.
 - **Self-healing.** Every `synapse_search` lazily vectorizes any new observations it touches and kicks a background backfill, so the index converges to 100% on its own. After the first run you never call `synapse_backfill` by hand.
-- **Single static binary.** `sqlite-vec` is compiled in via CGO — no runtime `.dylib`, faithful to Engram's zero-dependency philosophy.
+- **Pure Go, zero CGO.** Vectors live in SQLite (via `modernc.org/sqlite`) and KNN is computed in Go — no C compiler, no build tags. A single `go build` cross-compiles to macOS, Linux and Windows, faithful to Engram's zero-dependency philosophy.
+
+## Your data never leaves Engram
+
+Synapse is an **index, not a store** — think Elasticsearch beside Postgres. Engram stays the single source of truth.
+
+Synapse embeds your `title + content`, but `synapse.db` keeps **only the derived vector** per memory, plus a content hash, the model name, and the Engram `obs_id` that points back:
+
+| Lives in `engram.db` (owned by Engram) | Lives in `synapse.db` (owned by Synapse) |
+|---|---|
+| title, content, type, project, timestamps, sessions, edits, deletes | `obs_id` → vector (BLOB) + content hash + model |
+
+So Synapse **never holds your memories' text**. At search time it reads the title/snippet back from `engram.db` to build results. That means `synapse.db` is a **disposable cache**: delete it anytime and the next `synapse_backfill` (or search) rebuilds it from Engram — you can't lose a memory by touching Synapse.
 
 ## "Doesn't Engram's `--semantic` already do this?"
 
@@ -64,7 +76,7 @@ flowchart LR
 
     subgraph SynapseBox["Synapse — this project"]
         ST["5 synapse_* tools"]
-        SDB[("synapse.db<br/>sqlite-vec · 3072-dim")]
+        SDB[("synapse.db<br/>vectors as BLOB · 3072-dim")]
         ST --- SDB
     end
 
@@ -80,22 +92,21 @@ A `synapse_search` call runs FTS5 over `engram.db` and KNN over `synapse.db` in 
 
 | Requirement | Why |
 |---|---|
-| **Go 1.25+** | Build toolchain |
-| **A C compiler** (`gcc`/`clang`; Xcode CLT on macOS) | `sqlite-vec` + FTS5 are compiled in via **CGO** |
+| **Go 1.25+** (only to build/install) | Build toolchain — no C compiler needed |
 | **[Engram](https://github.com/Gentleman-Programming/engram) installed** | Synapse reads its `engram.db`; it complements Engram, it doesn't replace it |
 | **An OpenAI API key** | Embeddings for vectorization and semantic search |
 
 ## Installation
 
-> ⚠️ **`go install` alone will NOT work.** The build *requires* `CGO_ENABLED=1` and `-tags sqlite_fts5`. Without them you get a binary with no FTS5 / sqlite-vec that fails at runtime. Use one of the commands below.
+Synapse is **pure Go** — no CGO, no C compiler, no build tags. The standard one-liner just works:
 
 **Option A — install with Go (recommended):**
 
 ```sh
-CGO_ENABLED=1 go install -tags sqlite_fts5 github.com/ediazs/synapse/cmd/synapse@latest
+go install github.com/ediazs/synapse/cmd/synapse@latest
 ```
 
-The binary lands in `$(go env GOPATH)/bin/synapse`.
+The binary lands in `$(go env GOPATH)/bin/synapse`. It cross-compiles cleanly, so prebuilt macOS / Linux / Windows binaries are also published on the [Releases](https://github.com/ediazs/synapse/releases) page — download and run, no toolchain required.
 
 **Option B — build from source:**
 
@@ -216,26 +227,26 @@ internal/
   port             interfaces: EngramReader, Embedder, VectorStore
   usecase          health · stats · backfill · search · sync
   engram           EngramReader adapter — reads engram.db read-only
-  store            VectorStore adapter — sqlite-vec over synapse.db
+  store            VectorStore adapter — pure-Go SQLite + cosine KNN over synapse.db
   embed            Embedder adapter — OpenAI (batched, retry+jitter)
   mcp              MCP tool handlers
 ```
 
-Build/test always carry the CGO flags:
+Build and test are plain Go — no CGO, no tags:
 
 ```sh
-make build   # CGO_ENABLED=1 go build -tags sqlite_fts5
-make test    # CGO_ENABLED=1 go test  -tags sqlite_fts5 ./...
+make build   # CGO_ENABLED=0 go build -o synapse ./cmd/synapse
+make test    # CGO_ENABLED=0 go test ./...
 ```
 
 ## Contributing
 
-Issues and PRs are welcome. Before opening a PR: run `make test` (and ideally `CGO_ENABLED=1 go test -tags sqlite_fts5 -race ./...`). Keep the domain free of infrastructure imports, and cover new behavior with tests.
+Issues and PRs are welcome. Before opening a PR: run `make test` (and ideally `go test -race ./...`). Keep the domain free of infrastructure imports, and cover new behavior with tests.
 
 ## Acknowledgments
 
 - **[Engram](https://github.com/Gentleman-Programming/engram)** by Gentleman-Programming — the memory Synapse rides alongside.
-- **[sqlite-vec](https://github.com/asg017/sqlite-vec)** by asg017 — the vector engine.
+- **[modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite)** — the pure-Go SQLite that makes the zero-CGO build possible.
 - **[Model Context Protocol](https://modelcontextprotocol.io)** — the protocol that makes it all composable.
 
 ## License

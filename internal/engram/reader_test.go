@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite" // pure-Go driver; no CGO needed for tests
 
 	"github.com/ediazs/synapse/internal/engram"
 )
@@ -18,8 +18,8 @@ func seedEngram(t *testing.T) string {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "engram.db")
 
-	// Use a direct file DSN (no mode=ro) for seeding via the mattn CGO driver.
-	db, err := sql.Open("sqlite3", "file:"+path+"?_foreign_keys=off")
+	// Use a direct file DSN (no mode=ro) for seeding.
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(off)")
 	if err != nil {
 		t.Fatalf("seed: open: %v", err)
 	}
@@ -265,7 +265,7 @@ func TestEngramReader_ReadOnly_RejectsWrites(t *testing.T) {
 	// Open a separate writable connection to the same file — this connection is
 	// test-only and never touches the read-only SQLiteEngramReader. We use it
 	// to confirm the read-only DSN on the reader rejects writes.
-	writeDB, err := sql.Open("sqlite3", "file:"+path+"?_foreign_keys=off")
+	writeDB, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(off)")
 	if err != nil {
 		t.Fatalf("writable open: %v", err)
 	}
@@ -274,7 +274,7 @@ func TestEngramReader_ReadOnly_RejectsWrites(t *testing.T) {
 	// The reader's DSN uses mode=ro, so attempting any write via *that*
 	// connection must fail. We replicate the intent by trying the write on a
 	// fresh read-only connection rather than the internal DB handle.
-	roDB, err := sql.Open("sqlite3", "file:"+path+"?mode=ro")
+	roDB, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
 	if err != nil {
 		t.Fatalf("ro open: %v", err)
 	}

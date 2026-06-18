@@ -3,16 +3,20 @@ package store
 // Dims is the embedding dimensionality for text-embedding-3-large.
 const Dims = 3072
 
-// schemaVecObs creates the sqlite-vec virtual table holding the vectors.
-// vec0 stores a fixed-dimension float vector keyed by the Engram observation id.
-const schemaVecObs = `CREATE VIRTUAL TABLE IF NOT EXISTS vec_obs USING vec0(
-    obs_id INTEGER PRIMARY KEY,
-    embedding FLOAT[3072]
+// schemaVecObs creates the table holding the vectors as raw BLOB. Each row is
+// keyed by the Engram observation id and stores the embedding as a
+// little-endian float32 sequence. A normal table (not a virtual table) keeps
+// the dependency on the pure-Go modernc.org/sqlite driver free of any C
+// extension.
+const schemaVecObs = `CREATE TABLE IF NOT EXISTS vec_obs (
+    obs_id    INTEGER PRIMARY KEY,
+    embedding BLOB NOT NULL,
+    dims      INTEGER NOT NULL
 )`
 
 // schemaObsMeta is a companion table used for idempotency (content hash) and
-// orphan detection. It lives in the same synapse.db, separate from vec0 so the
-// hot KNN path stays lean.
+// orphan detection. It lives in the same synapse.db, separate from vec_obs so
+// the hot KNN path stays lean.
 const schemaObsMeta = `CREATE TABLE IF NOT EXISTS obs_meta (
     obs_id       INTEGER PRIMARY KEY,
     content_hash TEXT NOT NULL,

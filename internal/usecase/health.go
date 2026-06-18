@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite" // registers the "sqlite" driver; pure Go, no CGO
 )
 
 // HealthResult is the output of HealthUsecase.Run.
@@ -49,7 +49,7 @@ func (h *HealthUsecase) Run(ctx context.Context) (*HealthResult, error) {
 }
 
 func pingDB(ctx context.Context, dsn string) bool {
-	db, err := sql.Open("sqlite3", dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return false
 	}

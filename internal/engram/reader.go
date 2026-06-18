@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite" // registers the "sqlite" driver; pure Go, no CGO
 
 	"github.com/ediazs/synapse/internal/domain"
 )
@@ -16,10 +16,11 @@ type SQLiteEngramReader struct {
 	db *sql.DB
 }
 
-// NewSQLiteEngramReader opens engram.db at path in read-only WAL mode.
+// NewSQLiteEngramReader opens engram.db at path in read-only mode using the
+// modernc.org/sqlite URI syntax. The connection never writes to engram.db.
 func NewSQLiteEngramReader(path string) (*SQLiteEngramReader, error) {
 	dsn := fmt.Sprintf("file:%s?mode=ro", path)
-	db, err := sql.Open("sqlite3", dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("engram: open: %w", err)
 	}

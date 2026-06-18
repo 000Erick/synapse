@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite" // pure-Go driver; no CGO needed for tests
 
 	"github.com/ediazs/synapse/internal/usecase"
 )
@@ -15,7 +15,7 @@ func createTempDB(t *testing.T, name string) string {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, name)
-	db, err := sql.Open("sqlite3", "file:"+path)
+	db, err := sql.Open("sqlite", "file:"+path)
 	if err != nil {
 		t.Fatalf("createTempDB %s: %v", name, err)
 	}

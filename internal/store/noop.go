@@ -7,7 +7,7 @@ import (
 )
 
 // NoopVectorStore is a stub that satisfies the VectorStore port without
-// any real storage. Used as a placeholder before sqlite-vec is wired.
+// any real storage. Used as a placeholder when no real store is needed.
 type NoopVectorStore struct{}
 
 func (n *NoopVectorStore) KNN(_ context.Context, _ []float32, _ int) ([]domain.Ranked, error) {
