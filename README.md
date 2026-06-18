@@ -28,12 +28,6 @@
 | `auth keeps breaking` | `JWT tokens expire too early` | different vocabulary |
 | `pago con tarjeta` 🇪🇸 | `Stripe payment integration` 🇬🇧 | different language |
 
-<div align="center">
-<img src="docs/assets/synapse-oxpecker.jpg" alt="Synapse is the oxpecker that rides alongside Engram" width="420" />
-<br/>
-<sub><b>Synapse is the oxpecker.</b> A small companion that rides on Engram's back and gives it the semantic vision it lacks — never getting in its way.</sub>
-</div>
-
 ## Why it's built this way
 
 - **Sibling, not wrapper.** Synapse exposes **new** `synapse_*` tools *next to* Engram's. It never intercepts or replaces `mem_search`. Run both; lose nothing.
@@ -203,7 +197,25 @@ You don't manage the index — **`synapse_search` keeps it current on its own.**
 
 ## Costs
 
-`synapse_backfill` and `synapse_search` call the OpenAI embeddings API. `text-embedding-3-large` is billed per token. Vectorizing a few thousand observations is cheap (cents), but estimate before running on very large databases — see [OpenAI pricing](https://openai.com/api/pricing/). Want it free and local? Swapping in a local embedder (e.g. Ollama) is on the roadmap — the `Embedder` port is already abstracted for it.
+Already running Engram with a **huge** memory? Good news: turning it semantic costs surprisingly little. Embeddings are billed per token, and a memory is small — so even a massive Engram is a few dollars, **one time**.
+
+**Rough estimate** assuming ~250 tokens per observation (title + content) — prices as of writing, always check [OpenAI pricing](https://openai.com/api/pricing/):
+
+| Observations in Engram | `text-embedding-3-large` ($0.13 / 1M) | `text-embedding-3-small` ($0.02 / 1M) |
+|---|---|---|
+| 1,000 | ~$0.03 | ~$0.005 |
+| 10,000 | ~$0.33 | ~$0.05 |
+| 50,000 | ~$1.60 | ~$0.25 |
+| 100,000 | ~$3.25 | ~$0.50 |
+
+Key points that keep it cheap:
+
+- **It's a one-time backfill.** After the first run, the self-healing search only embeds *new* observations — your bill tracks how much you write, not how much you own.
+- **Searching is nearly free.** Each `synapse_search` embeds only your query (~10–20 tokens) — a tiny fraction of a cent.
+- **Pick your trade-off.** `text-embedding-3-large` gives the best recall; `text-embedding-3-small` is ~6× cheaper and still excellent (set `OPENAI_EMBED_MODEL`).
+- **Want it free and local?** A local embedder (e.g. Ollama) is on the roadmap — the `Embedder` port is already abstracted for it.
+
+In short: if you already trust Engram with thousands of memories, a couple of dollars upgrades all of them to **search by meaning**.
 
 ## Smoke test (manual)
 
