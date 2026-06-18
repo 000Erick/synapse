@@ -45,7 +45,7 @@ changelog:
       - "^docs"
       - "^ci"
 
-brews:
+homebrew_casks:
   - name: synapse
     repository:
       owner: 000Erick
@@ -53,9 +53,13 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/000Erick/synapse
     description: "Semantic vector search for Engram memory — pure Go, MCP-native."
-    license: MIT
-    install: |
-      bin.install "synapse"
+    # Strip the macOS quarantine flag so the unsigned binary runs without a Gatekeeper prompt.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/synapse"]
+          end
 
 scoops:
   - repository:
