@@ -6,8 +6,8 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/ediazs/synapse/internal/domain"
-	"github.com/ediazs/synapse/internal/port"
+	"github.com/000Erick/synapse/internal/domain"
+	"github.com/000Erick/synapse/internal/port"
 )
 
 const (

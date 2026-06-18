@@ -6,8 +6,8 @@ import (
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/ediazs/synapse/internal/port"
-	"github.com/ediazs/synapse/internal/usecase"
+	"github.com/000Erick/synapse/internal/port"
+	"github.com/000Erick/synapse/internal/usecase"
 )
 
 // Deps holds dependencies for MCP tool handlers.
@@ -19,6 +19,7 @@ type Deps struct {
 	Embedder    port.Embedder
 	Model       string
 	APIKey      string
+	Version     string
 }
 
 // RegisterTools registers all five synapse MCP tools on the server.
@@ -47,7 +48,7 @@ func addHealthTool(server *sdkmcp.Server, d *Deps) {
 		Name:        "synapse_health",
 		Description: "Liveness check and DB reachability for both engram.db and synapse.db.",
 	}, func(ctx context.Context, _ *sdkmcp.CallToolRequest, _ healthArgs) (*sdkmcp.CallToolResult, any, error) {
-		uc := usecase.NewHealthUsecase(d.EngramPath, d.SynapsePath)
+		uc := usecase.NewHealthUsecase(d.EngramPath, d.SynapsePath, d.Version)
 		r, err := uc.Run(ctx)
 		if err != nil {
 			return nil, nil, err

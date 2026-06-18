@@ -8,7 +8,7 @@ import (
 
 	_ "modernc.org/sqlite" // registers the "sqlite" driver; pure Go, no CGO
 
-	"github.com/ediazs/synapse/internal/domain"
+	"github.com/000Erick/synapse/internal/domain"
 )
 
 // SQLiteEngramReader is a read-only adapter over engram.db.

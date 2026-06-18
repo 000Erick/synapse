@@ -9,13 +9,16 @@ import (
 	"github.com/joho/godotenv"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/ediazs/synapse/internal/config"
-	"github.com/ediazs/synapse/internal/embed"
-	"github.com/ediazs/synapse/internal/engram"
-	"github.com/ediazs/synapse/internal/mcp"
-	"github.com/ediazs/synapse/internal/port"
-	"github.com/ediazs/synapse/internal/store"
+	"github.com/000Erick/synapse/internal/config"
+	"github.com/000Erick/synapse/internal/embed"
+	"github.com/000Erick/synapse/internal/engram"
+	"github.com/000Erick/synapse/internal/mcp"
+	"github.com/000Erick/synapse/internal/port"
+	"github.com/000Erick/synapse/internal/store"
 )
+
+// version is set at build time via ldflags: -X main.version=vX.Y.Z
+var version = "dev"
 
 func main() {
 	// Load .env for local development. Missing file is not an error — in
@@ -55,7 +58,7 @@ func main() {
 
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{
 		Name:    "synapse",
-		Version: "0.1.0",
+		Version: version,
 	}, nil)
 
 	deps := &mcp.Deps{
@@ -66,6 +69,7 @@ func main() {
 		Embedder:    embedder,
 		Model:       cfg.OpenAIEmbedModel,
 		APIKey:      cfg.OpenAIAPIKey,
+		Version:     version,
 	}
 	mcp.RegisterTools(server, deps)
 

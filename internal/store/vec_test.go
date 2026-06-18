@@ -9,7 +9,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/ediazs/synapse/internal/domain"
+	"github.com/000Erick/synapse/internal/domain"
 )
 
 // unitVec builds a Dims-dimensional unit vector by setting component idx to 1

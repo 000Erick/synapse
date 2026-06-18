@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ediazs/synapse/internal/domain"
-	"github.com/ediazs/synapse/internal/port"
+	"github.com/000Erick/synapse/internal/domain"
+	"github.com/000Erick/synapse/internal/port"
 )
 
 // backfillBatch is how many observations are embedded per OpenAI call / tx.

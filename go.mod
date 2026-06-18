@@ -1,4 +1,4 @@
-module github.com/ediazs/synapse
+module github.com/000Erick/synapse
 
 go 1.25.0
 

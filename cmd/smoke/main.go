@@ -11,11 +11,11 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"github.com/ediazs/synapse/internal/config"
-	"github.com/ediazs/synapse/internal/embed"
-	"github.com/ediazs/synapse/internal/engram"
-	"github.com/ediazs/synapse/internal/store"
-	"github.com/ediazs/synapse/internal/usecase"
+	"github.com/000Erick/synapse/internal/config"
+	"github.com/000Erick/synapse/internal/embed"
+	"github.com/000Erick/synapse/internal/engram"
+	"github.com/000Erick/synapse/internal/store"
+	"github.com/000Erick/synapse/internal/usecase"
 )
 
 func main() {

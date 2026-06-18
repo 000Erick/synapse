@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ediazs/synapse/internal/domain"
+	"github.com/000Erick/synapse/internal/domain"
 )
 
 func seedVec(t *testing.T, st interface {

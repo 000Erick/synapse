@@ -3,7 +3,7 @@ package usecase
 import (
 	"context"
 
-	"github.com/ediazs/synapse/internal/domain"
+	"github.com/000Erick/synapse/internal/domain"
 )
 
 // mockReader is a test double for port.EngramReader.

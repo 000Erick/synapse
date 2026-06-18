@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ediazs/synapse/internal/port"
+	"github.com/000Erick/synapse/internal/port"
 )
 
 // StatsResult is the output of StatsUsecase.Run.

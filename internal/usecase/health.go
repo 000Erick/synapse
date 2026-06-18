@@ -22,11 +22,12 @@ type HealthResult struct {
 type HealthUsecase struct {
 	engramPath  string
 	synapsePath string
+	version     string
 }
 
 // NewHealthUsecase creates a new HealthUsecase.
-func NewHealthUsecase(engramPath, synapsePath string) *HealthUsecase {
-	return &HealthUsecase{engramPath: engramPath, synapsePath: synapsePath}
+func NewHealthUsecase(engramPath, synapsePath, version string) *HealthUsecase {
+	return &HealthUsecase{engramPath: engramPath, synapsePath: synapsePath, version: version}
 }
 
 // Run pings both databases and returns a HealthResult.
@@ -34,7 +35,7 @@ func (h *HealthUsecase) Run(ctx context.Context) (*HealthResult, error) {
 	result := &HealthResult{
 		EngramPath:  h.engramPath,
 		SynapsePath: h.synapsePath,
-		Version:     "0.1.0",
+		Version:     h.version,
 	}
 
 	result.EngramReachable = pingDB(ctx, fmt.Sprintf("file:%s?mode=ro", h.engramPath))

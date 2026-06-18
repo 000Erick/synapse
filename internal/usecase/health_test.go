@@ -8,7 +8,7 @@ import (
 
 	_ "modernc.org/sqlite" // pure-Go driver; no CGO needed for tests
 
-	"github.com/ediazs/synapse/internal/usecase"
+	"github.com/000Erick/synapse/internal/usecase"
 )
 
 func createTempDB(t *testing.T, name string) string {
@@ -30,7 +30,7 @@ func TestHealthUsecase_BothDBsReachable(t *testing.T) {
 	engramPath := createTempDB(t, "engram.db")
 	synapsePath := createTempDB(t, "synapse.db")
 
-	uc := usecase.NewHealthUsecase(engramPath, synapsePath)
+	uc := usecase.NewHealthUsecase(engramPath, synapsePath, "test")
 	result, err := uc.Run(context.Background())
 	if err != nil {
 		t.Fatalf("health.Run: %v", err)
@@ -44,12 +44,15 @@ func TestHealthUsecase_BothDBsReachable(t *testing.T) {
 	if result.Status != "ok" {
 		t.Errorf("expected status=ok, got %q", result.Status)
 	}
+	if result.Version != "test" {
+		t.Errorf("expected version=%q, got %q", "test", result.Version)
+	}
 }
 
 func TestHealthUsecase_EngramUnreachable(t *testing.T) {
 	synapsePath := createTempDB(t, "synapse.db")
 
-	uc := usecase.NewHealthUsecase("/nonexistent/engram.db", synapsePath)
+	uc := usecase.NewHealthUsecase("/nonexistent/engram.db", synapsePath, "test")
 	result, err := uc.Run(context.Background())
 	if err != nil {
 		t.Fatalf("health.Run: %v", err)
