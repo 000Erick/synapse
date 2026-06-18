@@ -16,9 +16,10 @@
 # Go
 /vendor/
 
-# SDD / tooling internals (local only)
+# SDD / tooling internals (local only — contain local paths, not for publishing)
 .atl/
 .engram/
+openspec/
 
 # OS
 .DS_Store
