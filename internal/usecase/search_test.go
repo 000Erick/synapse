@@ -136,6 +136,31 @@ func TestSearch_RRFFusion_BothSources(t *testing.T) {
 	}
 }
 
+// TestSnippet_MultibyteUTF8 verifies that snippet() does not split a multibyte
+// UTF-8 character. Both accented Latin and CJK characters are exercised.
+func TestSnippet_MultibyteUTF8(t *testing.T) {
+	cases := []struct {
+		input string
+		n     int
+		want  string
+	}{
+		// 201 runes all from ASCII — plain truncation at 200 runes.
+		{"a" + string(make([]rune, 200)) + "b", 200, "a" + string(make([]rune, 199))},
+		// Accented Latin: each char is 2 bytes.  Truncating to 3 runes must stay valid UTF-8.
+		{"áéíóú", 3, "áéí"},
+		// CJK: each char is 3 bytes. Truncate to 2 → "你好".
+		{"你好世界", 2, "你好"},
+		// Short string shorter than n — returned as-is.
+		{"café", 100, "café"},
+	}
+	for _, tc := range cases {
+		got := snippet(tc.input, tc.n)
+		if got != tc.want {
+			t.Errorf("snippet(%q, %d) = %q, want %q", tc.input, tc.n, got, tc.want)
+		}
+	}
+}
+
 func TestSearch_LimitHonored(t *testing.T) {
 	ctx := context.Background()
 	obs := make([]domain.Observation, 20)

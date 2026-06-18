@@ -138,9 +138,3 @@ func sanitizeFTS(query string) string {
 	return strings.Join(quoted, " ")
 }
 
-// ExecForTest executes an arbitrary SQL statement — only used in tests to
-// verify that the read-only connection rejects writes.
-func (r *SQLiteEngramReader) ExecForTest(sql string) error {
-	_, err := r.db.Exec(sql)
-	return err
-}

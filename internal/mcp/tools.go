@@ -74,29 +74,16 @@ func addStatsTool(server *sdkmcp.Server, d *Deps) {
 		Name:        "synapse_stats",
 		Description: "Returns observation count, vector count, orphan count, dims, and model.",
 	}, func(ctx context.Context, _ *sdkmcp.CallToolRequest, _ statsArgs) (*sdkmcp.CallToolResult, any, error) {
-		var liveCount int64
-		if d.Reader != nil {
-			obs, err := d.Reader.LiveObservations(ctx)
-			if err == nil {
-				liveCount = int64(len(obs))
-			}
+		result, err := usecase.NewStatsUsecase(d.Reader, d.Store, d.Embedder, d.Model).Run(ctx)
+		if err != nil {
+			return nil, nil, err
 		}
-
-		// Get live IDs for orphan calculation
-		var liveIDs []int64
-		if d.Reader != nil {
-			liveIDs, _ = d.Reader.LiveIDs(ctx)
-		}
-
-		vectors, _ := d.Store.CountVectors(ctx)
-		orphans, _ := d.Store.CountOrphans(ctx, liveIDs)
-
 		out := map[string]any{
-			"live_observations": liveCount,
-			"vectors":           vectors,
-			"orphans":           orphans,
-			"dims":              d.Embedder.Dims(),
-			"model":             d.Model,
+			"live_observations": result.LiveObservations,
+			"vectors":           result.Vectors,
+			"orphans":           result.Orphans,
+			"dims":              result.Dims,
+			"model":             result.Model,
 		}
 		b, _ := json.Marshal(out)
 		return &sdkmcp.CallToolResult{
@@ -137,22 +124,21 @@ type searchArgs struct {
 }
 
 func addSearchTool(server *sdkmcp.Server, d *Deps) {
+	// Build the search usecase ONCE and share it across all search calls. Its
+	// single-flight guard for the background backfill is instance state, so a
+	// per-request usecase would let concurrent searches double-embed the same
+	// drift. The MCP server is long-lived, so this singleton is safe.
+	uc := usecase.NewSelfHealingSearchUsecase(d.Reader, d.Store, d.Embedder, d.APIKey, d.Model)
 	sdkmcp.AddTool(server, &sdkmcp.Tool{
 		Name:        "synapse_search",
 		Description: "Hybrid FTS5+KNN semantic search with RRF fusion. Returns ranked results.",
 	}, func(ctx context.Context, _ *sdkmcp.CallToolRequest, args searchArgs) (*sdkmcp.CallToolResult, any, error) {
-		if d.APIKey == "" && d.Reader == nil {
-			b, _ := json.Marshal(map[string]string{"error": "OPENAI_API_KEY is not set"})
-			return &sdkmcp.CallToolResult{
-				IsError: true,
-				Content: []sdkmcp.Content{&sdkmcp.TextContent{Text: string(b)}},
-			}, nil, nil
-		}
+		// No hard guard here: search degrades gracefully. Without an API key it
+		// runs FTS-only; synapse_health is the place to diagnose DB reachability.
 		limit := args.Limit
 		if limit <= 0 {
 			limit = 10
 		}
-		uc := usecase.NewSearchUsecase(d.Reader, d.Store, d.Embedder, d.APIKey)
 		results, vectorUsed, err := uc.Run(ctx, args.Query, limit)
 		if err != nil {
 			return nil, nil, err

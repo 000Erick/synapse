@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"math/rand"
 	"net/http"
 	"time"
 )
@@ -47,6 +49,24 @@ func WithBackoff(f func(attempt int) time.Duration) Option {
 	return func(e *OpenAIEmbedder) { e.backoff = f }
 }
 
+const (
+	backoffBase    = 250 * time.Millisecond
+	backoffMaxWait = 30 * time.Second
+)
+
+// defaultBackoff returns an exponential-with-jitter wait for retry attempt n
+// (1-based). Formula: base * 2^(n-1) + random fraction of base, capped at 30s.
+func defaultBackoff(attempt int) time.Duration {
+	exp := time.Duration(math.Pow(2, float64(attempt-1))) * backoffBase
+	// Add up to one backoffBase worth of jitter to spread retries.
+	jitter := time.Duration(rand.Int63n(int64(backoffBase)))
+	d := exp + jitter
+	if d > backoffMaxWait {
+		d = backoffMaxWait
+	}
+	return d
+}
+
 // NewOpenAIEmbedder builds an embedder. model defaults to text-embedding-3-large
 // when empty. The API key may be empty; Embed then returns ErrNoAPIKey.
 func NewOpenAIEmbedder(apiKey, model string, opts ...Option) *OpenAIEmbedder {
@@ -58,8 +78,8 @@ func NewOpenAIEmbedder(apiKey, model string, opts ...Option) *OpenAIEmbedder {
 		model:    model,
 		dims:     defaultDims,
 		endpoint: defaultEndpoint,
-		client:   &http.Client{Timeout: 60 * time.Second},
-		backoff:  func(attempt int) time.Duration { return time.Duration(attempt) * 500 * time.Millisecond },
+		client:  &http.Client{Timeout: 60 * time.Second},
+		backoff: defaultBackoff,
 	}
 	for _, o := range opts {
 		o(e)
@@ -137,8 +157,9 @@ func (e *OpenAIEmbedder) embedBatch(ctx context.Context, batch []string) ([][]fl
 
 		switch {
 		case resp.StatusCode == http.StatusOK:
-			defer resp.Body.Close()
-			return parseEmbedResponse(resp.Body, len(batch))
+			vecs, parseErr := parseEmbedResponse(resp.Body, len(batch))
+			resp.Body.Close()
+			return vecs, parseErr
 		case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500:
 			// transient → retry
 			drain(resp.Body)

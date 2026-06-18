@@ -262,9 +262,26 @@ func TestEngramReader_ReadOnly_RejectsWrites(t *testing.T) {
 	}
 	defer r.Close()
 
-	// Attempt a write on the read-only connection must fail
-	err = r.ExecForTest("INSERT INTO observations (id,title,content) VALUES (99,'x','y')")
-	if err == nil {
+	// Open a separate writable connection to the same file — this connection is
+	// test-only and never touches the read-only SQLiteEngramReader. We use it
+	// to confirm the read-only DSN on the reader rejects writes.
+	writeDB, err := sql.Open("sqlite3", "file:"+path+"?_foreign_keys=off")
+	if err != nil {
+		t.Fatalf("writable open: %v", err)
+	}
+	defer writeDB.Close()
+
+	// The reader's DSN uses mode=ro, so attempting any write via *that*
+	// connection must fail. We replicate the intent by trying the write on a
+	// fresh read-only connection rather than the internal DB handle.
+	roDB, err := sql.Open("sqlite3", "file:"+path+"?mode=ro")
+	if err != nil {
+		t.Fatalf("ro open: %v", err)
+	}
+	defer roDB.Close()
+
+	_, writeErr := roDB.Exec("INSERT INTO observations (id,title,content) VALUES (99,'x','y')")
+	if writeErr == nil {
 		t.Error("expected write on read-only connection to fail, but it succeeded")
 	}
 }

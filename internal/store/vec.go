@@ -25,9 +25,12 @@ type SQLiteVectorStore struct {
 }
 
 // NewSQLiteVectorStore opens (or creates) synapse.db at path and ensures the
-// vec0 table and companion metadata table exist.
+// vec0 table and companion metadata table exist. WAL mode and a 5-second busy
+// timeout are set so concurrent readers and the background backfill goroutine
+// do not starve each other.
 func NewSQLiteVectorStore(path string) (*SQLiteVectorStore, error) {
-	db, err := sql.Open("sqlite3", path)
+	dsn := path + "?_journal_mode=WAL&_busy_timeout=5000"
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("store: open: %w", err)
 	}
