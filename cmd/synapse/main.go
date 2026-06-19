@@ -54,7 +54,17 @@ func main() {
 	}
 	defer vecStore.Close()
 
-	embedder := embed.NewOpenAIEmbedder(cfg.OpenAIAPIKey, cfg.OpenAIEmbedModel)
+	// Build the embedder. A custom endpoint and/or dimension let Synapse embed
+	// with a free, local OpenAI-compatible model (Ollama, LocalAI, LM Studio)
+	// instead of the OpenAI API. Both default to OpenAI when unset.
+	var embedOpts []embed.Option
+	if cfg.EmbedEndpoint != "" {
+		embedOpts = append(embedOpts, embed.WithEndpoint(cfg.EmbedEndpoint))
+	}
+	if cfg.EmbedDims > 0 {
+		embedOpts = append(embedOpts, embed.WithDims(cfg.EmbedDims))
+	}
+	embedder := embed.NewOpenAIEmbedder(cfg.OpenAIAPIKey, cfg.OpenAIEmbedModel, embedOpts...)
 
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{
 		Name:    "synapse",

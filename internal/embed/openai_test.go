@@ -157,3 +157,46 @@ func TestOpenAIEmbedder_Dims(t *testing.T) {
 		t.Errorf("dims = %d, want 3072", e.Dims())
 	}
 }
+
+func TestOpenAIEmbedder_WithDims(t *testing.T) {
+	e := NewOpenAIEmbedder("k", "", WithDims(768))
+	if e.Dims() != 768 {
+		t.Errorf("dims = %d, want 768 (local model override)", e.Dims())
+	}
+}
+
+func TestOpenAIEmbedder_WithDims_IgnoresNonPositive(t *testing.T) {
+	e := NewOpenAIEmbedder("k", "", WithDims(0), WithDims(-5))
+	if e.Dims() != 3072 {
+		t.Errorf("dims = %d, want 3072 (non-positive override ignored)", e.Dims())
+	}
+}
+
+// A local OpenAI-compatible server (Ollama, LocalAI) is reached purely via the
+// endpoint override; the request still carries whatever key is set, which such
+// servers ignore. This proves the free/local path works without OpenAI.
+func TestOpenAIEmbedder_CustomEndpoint_LocalModel(t *testing.T) {
+	var gotModel string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req embedRequest
+		json.NewDecoder(r.Body).Decode(&req)
+		gotModel = req.Model
+		writeEmbedResponse(w, len(req.Input))
+	}))
+	defer srv.Close()
+
+	e := NewOpenAIEmbedder("ollama", "nomic-embed-text", WithEndpoint(srv.URL), WithDims(768))
+	vecs, err := e.Embed(context.Background(), []string{"hello"})
+	if err != nil {
+		t.Fatalf("Embed against local endpoint: %v", err)
+	}
+	if len(vecs) != 1 {
+		t.Fatalf("got %d vectors, want 1", len(vecs))
+	}
+	if gotModel != "nomic-embed-text" {
+		t.Errorf("server saw model %q, want nomic-embed-text", gotModel)
+	}
+	if e.Dims() != 768 {
+		t.Errorf("dims = %d, want 768", e.Dims())
+	}
+}

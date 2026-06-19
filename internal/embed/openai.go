@@ -49,6 +49,19 @@ func WithBackoff(f func(attempt int) time.Duration) Option {
 	return func(e *OpenAIEmbedder) { e.backoff = f }
 }
 
+// WithDims overrides the reported embedding dimensionality. Use it when a
+// local OpenAI-compatible model returns vectors of a different size than the
+// OpenAI default (e.g. 768 for nomic-embed-text). Non-positive values are
+// ignored so the default stays intact. This only affects what Dims() reports;
+// the actual stored vector length always follows the API response.
+func WithDims(d int) Option {
+	return func(e *OpenAIEmbedder) {
+		if d > 0 {
+			e.dims = d
+		}
+	}
+}
+
 const (
 	backoffBase    = 250 * time.Millisecond
 	backoffMaxWait = 30 * time.Second

@@ -70,14 +70,14 @@ flowchart LR
 
     subgraph SynapseBox["Synapse — this project"]
         ST["5 synapse_* tools"]
-        SDB[("synapse.db<br/>vectors as BLOB · 3072-dim")]
+        SDB[("synapse.db<br/>vectors as BLOB")]
         ST --- SDB
     end
 
     Agent -- "MCP stdio" --> ET
     Agent -- "MCP stdio" --> ST
     ST -. "read-only" .-> EDB
-    ST -- "embeds via" --> OAI["OpenAI<br/>text-embedding-3-large"]
+    ST -- "embeds via" --> OAI["OpenAI · or a free<br/>local model (Ollama)"]
 ```
 
 A `synapse_search` call runs FTS5 over `engram.db` and KNN over `synapse.db` in parallel, fuses the two ranked lists with RRF, and returns the merged result.
@@ -88,7 +88,7 @@ A `synapse_search` call runs FTS5 over `engram.db` and KNN over `synapse.db` in 
 |---|---|
 | **Go 1.25+** (only to build/install) | Build toolchain — no C compiler needed |
 | **[Engram](https://github.com/Gentleman-Programming/engram) installed** | Synapse reads its `engram.db`; it complements Engram, it doesn't replace it |
-| **An OpenAI API key** | Embeddings for vectorization and semantic search |
+| **An embeddings provider** | An OpenAI API key, **or** a free local model via [Ollama](https://ollama.com) / LocalAI / LM Studio (see [Free & local embeddings](#free--local-embeddings-no-openai-bill)) |
 
 ## Installation
 
@@ -176,10 +176,37 @@ Synapse reads configuration from the environment (a local `.env` is loaded autom
 
 | Variable | Default | Description |
 |---|---|---|
-| `OPENAI_API_KEY` | — | **Required** for backfill and semantic search |
-| `OPENAI_EMBED_MODEL` | `text-embedding-3-large` | Embedding model |
+| `OPENAI_API_KEY` | — | **Required** for backfill and semantic search. With a local model, set any non-empty placeholder (e.g. `ollama`) — local servers ignore it |
+| `OPENAI_EMBED_MODEL` | `text-embedding-3-large` | Embedding model name |
+| `SYNAPSE_EMBED_ENDPOINT` | — | OpenAI-compatible embeddings URL. Set it to use a **free, local model** (Ollama, LocalAI, LM Studio). Empty = OpenAI |
+| `SYNAPSE_EMBED_DIMS` | `0` (OpenAI default) | Vector size of your local model (e.g. `768` for `nomic-embed-text`), so `synapse_stats` reports it correctly |
 | `SYNAPSE_DB_PATH` | `~/.synapse/synapse.db` | Path to Synapse's vector DB |
 | `ENGRAM_DB_PATH` | `~/.engram/engram.db` | Path to Engram's DB (read-only) |
+
+### Free & local embeddings (no OpenAI bill)
+
+Synapse talks plain OpenAI-compatible HTTP, so any local server that speaks it — **[Ollama](https://ollama.com), LocalAI, LM Studio** — works as a drop-in, **zero-cost, fully offline** embedder. Your memories never leave your machine.
+
+Example with Ollama:
+
+```sh
+ollama pull nomic-embed-text
+```
+
+```jsonc
+// env block in your MCP client config
+{
+  "OPENAI_API_KEY": "ollama",                 // any non-empty placeholder; ignored locally
+  "OPENAI_EMBED_MODEL": "nomic-embed-text",
+  "SYNAPSE_EMBED_ENDPOINT": "http://localhost:11434/v1/embeddings",
+  "SYNAPSE_EMBED_DIMS": "768",                // nomic-embed-text returns 768-dim vectors
+  "ENGRAM_DB_PATH": "/Users/you/.engram/engram.db"
+}
+```
+
+That's the whole switch — no code changes. The hybrid FTS5 + vector search, RRF fusion, and self-healing all work identically.
+
+> **Switching models?** Vectors are model-specific (different models produce different dimensions). Synapse safely **ignores vectors whose dimension doesn't match** the active model, so nothing crashes — but for a clean cut, delete `synapse.db` and run `synapse_backfill` once to re-embed everything with the new model. The self-healing search also re-embeds touched memories on the fly, so the index converges on its own.
 
 ## MCP Tools
 
@@ -230,7 +257,7 @@ Key points that keep it cheap:
 - **It's a one-time backfill.** After the first run, the self-healing search only embeds *new* observations — your bill tracks how much you write, not how much you own.
 - **Searching is nearly free.** Each `synapse_search` embeds only your query (~10–20 tokens) — a tiny fraction of a cent.
 - **Pick your trade-off.** `text-embedding-3-large` gives the best recall; `text-embedding-3-small` is ~6× cheaper and still excellent (set `OPENAI_EMBED_MODEL`).
-- **Want it free and local?** A local embedder (e.g. Ollama) is on the roadmap — the `Embedder` port is already abstracted for it.
+- **Want it free and local?** Skip the bill entirely — point Synapse at [Ollama](https://ollama.com) or another local model and embeddings cost **$0**. See [Free & local embeddings](#free--local-embeddings-no-openai-bill).
 
 In short: if you already trust Engram with thousands of memories, a couple of dollars upgrades all of them to **search by meaning**.
 
@@ -257,7 +284,7 @@ internal/
   usecase          health · stats · backfill · search · sync
   engram           EngramReader adapter — reads engram.db read-only
   store            VectorStore adapter — pure-Go SQLite + cosine KNN over synapse.db
-  embed            Embedder adapter — OpenAI (batched, retry+jitter)
+  embed            Embedder adapter — OpenAI-compatible (OpenAI or local; batched, retry+jitter)
   mcp              MCP tool handlers
 ```
 
